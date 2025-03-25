@@ -1,5 +1,7 @@
 import sys
 from pathlib import Path
+from unittest.mock import patch
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 def test_bigquery_upload_import():
@@ -15,8 +17,6 @@ def test_data_loading():
     from scripts.bigquery_upload import patients_data
     assert not patients_data.empty
     assert 'patient_id' in patients_data.columns
-
-from unittest.mock import patch
 
 @patch('scripts.bigquery_upload.bigquery.Client')
 def test_table_upload(mock_client):

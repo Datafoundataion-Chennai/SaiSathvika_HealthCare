@@ -1,13 +1,6 @@
-
-
-
-
-
-
-
-
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -28,8 +21,6 @@ def test_missing_lottie_file():
     """Test handling of missing animation files"""
     from scripts.streamlit_app import load_lottie
     assert load_lottie("nonexistent.json") is None
-
-from unittest.mock import patch
 
 @patch('scripts.streamlit_app.bigquery.Client')
 def test_query_execution(mock_client):
