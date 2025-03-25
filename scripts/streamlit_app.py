@@ -38,7 +38,7 @@ def run_query(query):
         return pd.DataFrame()
 
 def login_page():
-    st.title("🔒 Healthcare Analytics Dashboard - Login")
+    st.title("Healthcare Analytics Dashboard - Login")
     st.markdown("---")
     
     lottie_animation = load_lottie(r"E:\healthcare_analytics\data\animation.json")
@@ -141,7 +141,7 @@ def admin_panel():
             st.warning(f"Could not retrieve data/The table '{selected_table}' exists but contains no data from {tables[selected_table]}")
 
 def user_dashboard():
-    st.title("🏥 Healthcare Provider Analytics Dashboard")
+    st.title("Healthcare Provider Analytics Dashboard")
     st.markdown("---")
 
     lottie_animation = load_lottie(r"E:\healthcare_analytics\data\animation.json")
