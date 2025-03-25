@@ -1,5 +1,6 @@
 import pandas as pd
 from google.cloud import bigquery
+from google.cloud.bigquery import DatasetReference
 from pathlib import Path
 
 base_dir = Path(__file__).parent.parent
@@ -19,9 +20,6 @@ tables = {
 }
 
 client = bigquery.Client()
-
-#dataset_ref = client.dataset(dataset_id)
-from google.cloud.bigquery import DatasetReference
 dataset_ref = DatasetReference(client.project, dataset_id)
 try:
     client.get_dataset(dataset_ref)

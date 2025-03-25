@@ -23,12 +23,6 @@ def combine_names(row):
 
 patients_data['patient_name'] = patients_data.apply(combine_names, axis=1)
 
-# cols = patients_data.columns.tolist()
-# cols.remove('patient_name') 
-# cols.insert(1, 'patient_name')
-# patients_data = patients_data[cols]
-
-
 appointments_data = pd.merge(
     appointments_data,
     doctors_data,
