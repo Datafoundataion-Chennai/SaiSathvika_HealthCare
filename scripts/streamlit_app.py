@@ -42,7 +42,7 @@ def load_lottie(filepath):
 
 def run_query(query):
     try:
-        logging.info(f"Executing query: {query[:100]}...")  # Log first 100 chars to avoid huge logs
+        logging.info(f"Executing query: {query[:100]}...") 
         result = client.query(query).to_dataframe()
         logging.info(f"Query executed successfully, returned {len(result)} rows")
         return result
