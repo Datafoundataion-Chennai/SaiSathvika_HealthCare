@@ -8,6 +8,7 @@ import json
 import logging
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 logging.info("Healthcare Analytics Dashboard started successfully!")
 
 client = bigquery.Client()
@@ -19,25 +20,39 @@ cms_data_table = 'cms_data'
 
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
+    logging.debug("Initialized session_state.authenticated to False")
 if 'user_type' not in st.session_state:
     st.session_state.user_type = None
+    logging.debug("Initialized session_state.user_type to None")
 
 def load_lottie(filepath):
     try:
+        logging.info(f"Attempting to load Lottie animation from {filepath}")
         with open(filepath, "r") as f:
-            return json.load(f)
+            animation = json.load(f)
+            logging.info("Successfully loaded Lottie animation")
+            return animation
     except FileNotFoundError:
+        logging.error(f"Lottie animation file not found at {filepath}")
         st.warning(f"Lottie animation file not found at {filepath}. Please ensure the file exists.")
+        return None
+    except Exception as e:
+        logging.error(f"Error loading Lottie animation: {str(e)}")
         return None
 
 def run_query(query):
     try:
-        return client.query(query).to_dataframe()
+        logging.info(f"Executing query: {query[:100]}...")  # Log first 100 chars to avoid huge logs
+        result = client.query(query).to_dataframe()
+        logging.info(f"Query executed successfully, returned {len(result)} rows")
+        return result
     except Exception as e:
+        logging.error(f"Error executing query: {str(e)}")
         st.error(f"Error executing query: {str(e)}")
         return pd.DataFrame()
 
 def login_page():
+    logging.info("Rendering login page")
     st.title("Healthcare Analytics Dashboard - Login")
     st.markdown("---")
     
@@ -47,22 +62,28 @@ def login_page():
     
     st.subheader("User Login")
     if st.button("Login as User"):
+        logging.info("User login button clicked")
         st.session_state.authenticated = True
         st.session_state.user_type = "user"
+        logging.info("User authenticated successfully")
         st.rerun()
     
     st.markdown("---")
     st.subheader("Admin Login")
     password = st.text_input("Admin Password", type="password")
     if st.button("Login as Admin"):
+        logging.info("Admin login button clicked")
         if password == "admin123":
             st.session_state.authenticated = True
             st.session_state.user_type = "admin"
+            logging.info("Admin authenticated successfully")
             st.rerun()
         else:
+            logging.warning("Incorrect admin password attempt")
             st.error("Incorrect admin password")
 
 def admin_panel():
+    logging.info("Rendering admin panel")
     st.title("Admin Panel")
     st.markdown("---")
     
@@ -70,10 +91,12 @@ def admin_panel():
     query = st.text_area("Enter your SQL query:", height=200)
     
     if st.button("Execute Query"):
+        logging.info("Execute Query button clicked")
         if query.strip():
             with st.spinner("Executing query..."):
                 result = run_query(query)
                 if not result.empty:
+                    logging.info(f"Query returned {len(result)} rows")
                     st.success("Query executed successfully!")
                     st.dataframe(result)
                     
@@ -85,8 +108,10 @@ def admin_panel():
                         mime='text/csv'
                     )
                 else:
+                    logging.warning("Query executed but returned no results")
                     st.warning("Query executed but returned no results.")
         else:
+            logging.warning("Attempt to execute empty query")
             st.warning("Please enter a query to execute.")
     
     st.markdown("---")
@@ -95,6 +120,7 @@ def admin_panel():
     @st.cache_data(ttl=300)
     def get_all_tables():
         try:
+            logging.info("Fetching list of all tables")
             query = f"""
                 SELECT table_name 
                 FROM `{dataset_id}.INFORMATION_SCHEMA.TABLES`
@@ -102,9 +128,12 @@ def admin_panel():
                 ORDER BY table_name
             """
             tables_df = run_query(query)
-            return {name.replace('_', ' ').title(): f"{dataset_id}.{name}" 
-                   for name in tables_df['table_name']}
+            tables_dict = {name.replace('_', ' ').title(): f"{dataset_id}.{name}" 
+                         for name in tables_df['table_name']}
+            logging.info(f"Found {len(tables_dict)} tables")
+            return tables_dict
         except Exception as e:
+            logging.error(f"Failed to fetch tables: {str(e)}")
             st.error(f"Failed to fetch tables: {str(e)}")
             return {
                 "Patients Data": f"{dataset_id}.{patients_data_table}",
@@ -115,12 +144,15 @@ def admin_panel():
     tables = get_all_tables()
 
     if st.button("Refresh Table List"):
+        logging.info("Refresh Table List button clicked")
         st.cache_data.clear()
         st.rerun()
     
     selected_table = st.selectbox("Select a table to view schema:", list(tables.keys()))
+    logging.info(f"Selected table: {selected_table}")
     
     if st.button("Show Schema"):
+        logging.info(f"Showing schema for table: {selected_table}")
         schema_query = f"""
             SELECT column_name, data_type, is_nullable
             FROM `{dataset_id}.INFORMATION_SCHEMA.COLUMNS`
@@ -130,17 +162,21 @@ def admin_panel():
         if not schema.empty:
             st.dataframe(schema)
         else:
+            logging.warning(f"Could not retrieve schema for {tables[selected_table]}")
             st.warning(f"Could not retrieve schema for {tables[selected_table]}")
     
     if st.button("Preview Data"):
+        logging.info(f"Previewing data for table: {selected_table}")
         preview_query = f"SELECT * FROM `{tables[selected_table]}` LIMIT 10"
         preview_data = run_query(preview_query)
         if not preview_data.empty:
             st.dataframe(preview_data)
         else:
+            logging.warning(f"Could not retrieve data for table {selected_table}")
             st.warning(f"Could not retrieve data/The table '{selected_table}' exists but contains no data from {tables[selected_table]}")
 
 def user_dashboard():
+    logging.info("Rendering user dashboard")
     st.title("Healthcare Provider Analytics Dashboard")
     st.markdown("---")
 
@@ -155,8 +191,10 @@ def user_dashboard():
          "Patient Appointment Patterns",
          "Facility Readmission Rates"]
     )
+    logging.info(f"Selected analysis option: {analysis_option}")
 
     if analysis_option == "Doctor Appointment Volume":
+        logging.info("Displaying Doctor Appointment Volume analysis")
         st.header("Doctor Appointment Volume")
         
         query = f"""
@@ -171,12 +209,14 @@ def user_dashboard():
 
         search_query = st.text_input("Search by Doctor Name", "")
         if search_query:
+            logging.info(f"Searching for doctor names containing: {search_query}")
             df = df[df['Doctor Name'].astype(str).str.contains(search_query, case=False)]
 
         page_size = 10
         page_number = st.number_input("Page Number", min_value=1, max_value=(len(df) // page_size) + 1, value=1)
         start_idx = (page_number - 1) * page_size
         end_idx = start_idx + page_size
+        logging.info(f"Displaying page {page_number} of results")
 
         st.write("Appointments per Doctor")
         st.dataframe(df.iloc[start_idx:end_idx])
@@ -185,6 +225,7 @@ def user_dashboard():
             "Select Visualization Type",
             ["Page-Level Insights", "Full Data View"]
         )
+        logging.info(f"Selected visualization: {visualization_option}")
 
         if visualization_option == "Page-Level Insights":
             data_to_visualize = df.iloc[start_idx:end_idx]
@@ -219,6 +260,7 @@ def user_dashboard():
         st.pyplot(plt)
 
     elif analysis_option == "Patient Appointment Patterns":
+        logging.info("Displaying Patient Appointment Patterns analysis")
         st.header("Patient Appointment Patterns")
         
         query = f"""
@@ -251,12 +293,14 @@ def user_dashboard():
 
         search_query = st.text_input("Search by Patient Name", "")
         if search_query:
+            logging.info(f"Searching for patient names containing: {search_query}")
             df = df[df['Patient Name'].astype(str).str.contains(search_query, case=False)]
 
         page_size = 10
         page_number = st.number_input("Page Number", min_value=1, max_value=(len(df) // page_size) + 1, value=1)
         start_idx = (page_number - 1) * page_size
         end_idx = start_idx + page_size
+        logging.info(f"Displaying page {page_number} of results")
 
         st.write("Average Days Between Appointments")
         st.dataframe(df.iloc[start_idx:end_idx])
@@ -265,6 +309,7 @@ def user_dashboard():
             "Select Visualization Type",
             ["Page-Level Insights", "Full Data View"]
         )
+        logging.info(f"Selected visualization: {visualization_option}")
 
         if visualization_option == "Page-Level Insights":
             data_to_visualize = df.iloc[start_idx:end_idx]
@@ -298,6 +343,7 @@ def user_dashboard():
         st.pyplot(plt)
 
     elif analysis_option == "Facility Readmission Rates":
+        logging.info("Displaying Facility Readmission Rates analysis")
         st.header("Facility Readmission Rates")
         
         query = f"""
@@ -312,12 +358,14 @@ def user_dashboard():
 
         search_query = st.text_input("Search by Facility Name", "")
         if search_query:
+            logging.info(f"Searching for facility names containing: {search_query}")
             df = df[df['Facility Name'].astype(str).str.contains(search_query, case=False)]
 
         page_size = 10
         page_number = st.number_input("Page Number", min_value=1, max_value=(len(df) // page_size) + 1, value=1)
         start_idx = (page_number - 1) * page_size
         end_idx = start_idx + page_size
+        logging.info(f"Displaying page {page_number} of results")
 
         st.write("Readmissions by Facility")
         st.dataframe(df.iloc[start_idx:end_idx])
@@ -326,6 +374,7 @@ def user_dashboard():
             "Select Visualization Type",
             ["Page-Level Insights", "Full Data View"]
         )
+        logging.info(f"Selected visualization: {visualization_option}")
 
         if visualization_option == "Page-Level Insights":
             data_to_visualize = df.iloc[start_idx:end_idx]
@@ -366,6 +415,7 @@ else:
     
     st.sidebar.markdown("---")
     if st.sidebar.button("Logout"):
+        logging.info("User logged out")
         st.session_state.authenticated = False
         st.session_state.user_type = None
         st.rerun()
